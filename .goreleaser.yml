@@ -1,7 +1,7 @@
 version: 2
 
 builds:
-  - main: ./cmd/blink
+  - main: ./cmd/blink/
     binary: blink
     ldflags:
       - -s -w
