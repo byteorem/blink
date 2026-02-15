@@ -1,5 +1,5 @@
 # Build
-blink
+/blink
 dist/
 
 # Test
