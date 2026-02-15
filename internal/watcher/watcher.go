@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/byteorem/blink/internal/copier"
 	"github.com/fsnotify/fsnotify"
@@ -54,10 +55,25 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 		defer w.Close()
 		defer close(ch)
 
+		const debounce = 50 * time.Millisecond
+		pending := make(map[string]Event)
+		var timer *time.Timer
+		var timerC <-chan time.Time
+
+		flush := func() {
+			for _, ev := range pending {
+				ch <- ev
+			}
+			pending = make(map[string]Event)
+			timerC = nil
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-timerC:
+				flush()
 			case ev, ok := <-w.Events:
 				if !ok {
 					return
@@ -90,7 +106,14 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 					continue
 				}
 
-				ch <- Event{RelPath: rel, Op: op}
+				pending[rel] = Event{RelPath: rel, Op: op}
+
+				if timer == nil {
+					timer = time.NewTimer(debounce)
+					timerC = timer.C
+				} else {
+					timer.Reset(debounce)
+				}
 
 			case _, ok := <-w.Errors:
 				if !ok {
