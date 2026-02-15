@@ -2,6 +2,10 @@
 
 A hot-reload style CLI tool for World of Warcraft addon developers. Watches your addon source files for changes and automatically syncs them to the WoW AddOns folder — like nodemon, but for WoW.
 
+## Demo
+
+![blink demo](assets/demo.gif)
+
 ## Features
 
 - **File watching** — Detects changes via OS-level events and copies files instantly
@@ -87,33 +91,6 @@ See [`blink.toml.example`](blink.toml.example) for a commented template.
 1. `.git/` and `blink.toml` are always ignored
 2. `.gitignore` patterns are respected automatically (disable with `useGitignore = false`)
 3. Additional patterns from the `ignore` config array
-
-## Example Output
-
-```
- ✨ blink
-
- ● Watching   MyAddon
- ● Target     C:\...\AddOns\MyAddon
- ● Files      12 synced
-
- ⠋ Watching for changes...
-
-  14:32:01  MyAddon.lua → copied
-  14:32:15  Config.xml → copied
-  14:33:02  Libs/Utils.lua → copied
-
-  Press q to quit
-```
-
-When piped or run outside a TTY, blink falls back to plain text output:
-
-```
-blink v0.1.0 — watching MyAddon
-target: C:\...\AddOns\MyAddon
-synced 12 files
-14:32:01  MyAddon.lua → copied
-```
 
 ## Requirements
 
