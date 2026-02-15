@@ -7,9 +7,6 @@
 # WoW installation root, or "auto" to detect common paths
 # wowPath = "auto"
 
-# WoW version: "retail", "classic", or "classic_era"
-# version = "retail"
-
 # Additional file patterns to ignore (on top of .gitignore)
 # ignore = ["*.md", "tests/", "docs/"]
 
