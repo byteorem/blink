@@ -5,6 +5,7 @@
 # source = "./MyAddon"
 
 # WoW installation root, or "auto" to detect common paths
+# Accepts Windows paths (C:\...) or WSL paths (/mnt/c/...)
 # wowPath = "auto"
 
 # Additional file patterns to ignore (on top of .gitignore)

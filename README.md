@@ -6,7 +6,7 @@ A hot-reload style CLI tool for World of Warcraft addon developers. Watches your
 
 - **File watching** — Detects changes via OS-level events and copies files instantly
 - **Auto-detect addon source** — Finds your addon by scanning for `.toc` files, or specify a path manually
-- **Auto-detect WoW path** — Finds your WoW installation from common WSL `/mnt/` paths
+- **Auto-detect WoW path** — Finds your WoW installation automatically (supports both Windows and WSL-style paths)
 - **Smart ignore** — Respects `.gitignore` automatically, with additional patterns via config
 - **Deletion sync** — Target mirrors source exactly; removed source files are cleaned up
 - **Polished TUI** — Spinner, status header, and rolling change log; falls back to plain text when piped
@@ -52,7 +52,7 @@ Flags:
 
 ```bash
 # Specify a custom WoW path
-blink --source ./MyAddon --wow-path "/mnt/c/Program Files/World of Warcraft/_retail_"
+blink --source ./MyAddon --wow-path "C:\Program Files\World of Warcraft\_retail_"
 
 # One-time copy without watching
 blink --no-watch
@@ -64,7 +64,7 @@ Blink can be configured via a `blink.toml` file in your project root:
 
 ```toml
 source = "./MyAddon"
-wowPath = "/mnt/c/Program Files/World of Warcraft/_retail_"
+wowPath = "C:\\Program Files\\World of Warcraft\\_retail_"
 ignore = ["*.md", "tests/"]
 useGitignore = true
 ```
@@ -77,6 +77,8 @@ useGitignore = true
 | `useGitignore` | Respect `.gitignore` patterns                            | `true`     |
 
 **Precedence**: CLI flags > `blink.toml` > defaults
+
+> **Note**: Blink accepts both Windows paths (`C:\...`) and WSL-style paths (`/mnt/c/...`).
 
 See [`blink.toml.example`](blink.toml.example) for a commented template.
 
@@ -92,7 +94,7 @@ See [`blink.toml.example`](blink.toml.example) for a commented template.
  ✨ blink
 
  ● Watching   MyAddon
- ● Target     /mnt/c/.../AddOns/MyAddon
+ ● Target     C:\...\AddOns\MyAddon
  ● Files      12 synced
 
  ⠋ Watching for changes...
@@ -108,7 +110,7 @@ When piped or run outside a TTY, blink falls back to plain text output:
 
 ```
 blink v0.1.0 — watching MyAddon
-target: /mnt/c/.../AddOns/MyAddon
+target: C:\...\AddOns\MyAddon
 synced 12 files
 14:32:01  MyAddon.lua → copied
 ```
@@ -116,7 +118,7 @@ synced 12 files
 ## Requirements
 
 - Go 1.21+
-- Windows + WSL2
+- Windows (WSL-style paths like `/mnt/c/...` are also supported)
 
 ## License
 
