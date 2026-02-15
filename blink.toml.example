@@ -1,0 +1,17 @@
+# blink.toml — Configuration for blink
+# All fields are optional. CLI flags take precedence over this file.
+
+# Path to addon source directory, or "auto" to detect via .toc files
+# source = "./MyAddon"
+
+# WoW installation root, or "auto" to detect common paths
+# wowPath = "auto"
+
+# WoW version: "retail", "classic", or "classic_era"
+# version = "retail"
+
+# Additional file patterns to ignore (on top of .gitignore)
+# ignore = ["*.md", "tests/", "docs/"]
+
+# Whether to respect .gitignore patterns (default: true)
+# useGitignore = true

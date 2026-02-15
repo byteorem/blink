@@ -1,0 +1,17 @@
+# Build
+blink
+
+# Dependencies
+go.sum
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Editor
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
