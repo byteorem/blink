@@ -1,3 +1,4 @@
+// Package detect locates the addon source directory and WoW install path.
 package detect
 
 import (
@@ -7,6 +8,7 @@ import (
 	"strings"
 )
 
+// FindAddon resolves the addon source directory and name from a flag or auto-detection.
 func FindAddon(sourceFlag string) (srcDir string, addonName string, err error) {
 	if sourceFlag != "" && sourceFlag != "auto" {
 		srcDir, err = filepath.Abs(sourceFlag)
@@ -65,6 +67,7 @@ func FindAddon(sourceFlag string) (srcDir string, addonName string, err error) {
 	return "", "", fmt.Errorf("no .toc file found — set source in blink.toml or use --source")
 }
 
+// FindWowPath resolves the WoW version directory from a flag or auto-detection.
 func FindWowPath(wowPathFlag string) (string, error) {
 	if wowPathFlag != "" && wowPathFlag != "auto" {
 		info, err := os.Stat(wowPathFlag)

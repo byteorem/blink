@@ -25,8 +25,8 @@ func TestDefaults(t *testing.T) {
 
 func TestLoad_NoFile(t *testing.T) {
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(t.TempDir())
+	defer func() { _ = os.Chdir(orig) }()
+	_ = os.Chdir(t.TempDir())
 
 	cfg, err := Load()
 	if err != nil {
@@ -40,15 +40,15 @@ func TestLoad_NoFile(t *testing.T) {
 func TestLoad_ValidTOML(t *testing.T) {
 	dir := t.TempDir()
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(orig) }()
+	_ = os.Chdir(dir)
 
 	toml := `source = "/my/addon"
 wowPath = "/mnt/c/WoW/_retail_"
 ignore = ["*.bak"]
 useGitignore = false
 `
-	os.WriteFile(filepath.Join(dir, "blink.toml"), []byte(toml), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "blink.toml"), []byte(toml), 0o644)
 
 	cfg, err := Load()
 	if err != nil {
@@ -71,10 +71,10 @@ useGitignore = false
 func TestLoad_InvalidTOML(t *testing.T) {
 	dir := t.TempDir()
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(orig) }()
+	_ = os.Chdir(dir)
 
-	os.WriteFile(filepath.Join(dir, "blink.toml"), []byte("not valid {{toml"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "blink.toml"), []byte("not valid {{toml"), 0o644)
 
 	_, err := Load()
 	if err == nil {

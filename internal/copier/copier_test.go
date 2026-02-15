@@ -47,7 +47,7 @@ func TestShouldIgnore_DirPatterns(t *testing.T) {
 
 func TestNewIgnorer_GitignorePatterns(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("*.tmp\n# comment\n\nbuild/\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("*.tmp\n# comment\n\nbuild/\n"), 0o644)
 
 	ig := NewIgnorer(dir, nil, true)
 
@@ -61,7 +61,7 @@ func TestNewIgnorer_GitignorePatterns(t *testing.T) {
 
 func TestNewIgnorer_NoGitignore(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("*.tmp\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("*.tmp\n"), 0o644)
 
 	ig := NewIgnorer(dir, []string{"*.bak"}, false)
 
@@ -78,12 +78,12 @@ func TestInitialSync(t *testing.T) {
 	dst := t.TempDir()
 
 	// Create source files
-	os.WriteFile(filepath.Join(src, "main.lua"), []byte("print('hi')"), 0o644)
-	os.MkdirAll(filepath.Join(src, "libs"), 0o755)
-	os.WriteFile(filepath.Join(src, "libs", "helper.lua"), []byte("-- help"), 0o644)
-	os.WriteFile(filepath.Join(src, "blink.toml"), []byte("ignored"), 0o644)
-	os.MkdirAll(filepath.Join(src, ".git"), 0o755)
-	os.WriteFile(filepath.Join(src, ".git", "HEAD"), []byte("ref"), 0o644)
+	_ = os.WriteFile(filepath.Join(src, "main.lua"), []byte("print('hi')"), 0o644)
+	_ = os.MkdirAll(filepath.Join(src, "libs"), 0o755)
+	_ = os.WriteFile(filepath.Join(src, "libs", "helper.lua"), []byte("-- help"), 0o644)
+	_ = os.WriteFile(filepath.Join(src, "blink.toml"), []byte("ignored"), 0o644)
+	_ = os.MkdirAll(filepath.Join(src, ".git"), 0o755)
+	_ = os.WriteFile(filepath.Join(src, ".git", "HEAD"), []byte("ref"), 0o644)
 
 	ig := NewIgnorer(src, nil, false)
 	count, err := InitialSync(src, dst, ig)
@@ -112,7 +112,7 @@ func TestCopyFile(t *testing.T) {
 	dst := t.TempDir()
 
 	srcFile := filepath.Join(src, "test.txt")
-	os.WriteFile(srcFile, []byte("hello"), 0o644)
+	_ = os.WriteFile(srcFile, []byte("hello"), 0o644)
 
 	dstFile := filepath.Join(dst, "sub", "dir", "test.txt")
 	if err := CopyFile(srcFile, dstFile); err != nil {
@@ -131,7 +131,7 @@ func TestCopyFile(t *testing.T) {
 func TestDeleteFile(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "delete-me.txt")
-	os.WriteFile(f, []byte("bye"), 0o644)
+	_ = os.WriteFile(f, []byte("bye"), 0o644)
 
 	if err := DeleteFile(f); err != nil {
 		t.Fatalf("DeleteFile() error = %v", err)

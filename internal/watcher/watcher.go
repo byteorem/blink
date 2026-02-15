@@ -1,3 +1,4 @@
+// Package watcher provides debounced filesystem event monitoring.
 package watcher
 
 import (
@@ -10,8 +11,10 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+// Op represents a filesystem operation type.
 type Op int
 
+// Filesystem operation types.
 const (
 	OpCreate Op = iota
 	OpWrite
@@ -19,11 +22,13 @@ const (
 	OpRename
 )
 
+// Event represents a debounced filesystem change.
 type Event struct {
 	RelPath string
 	Op      Op
 }
 
+// Watch starts watching srcDir for changes, returning debounced events on a channel.
 func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -45,14 +50,14 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 		return w.Add(path)
 	})
 	if err != nil {
-		w.Close()
+		_ = w.Close()
 		return nil, err
 	}
 
 	ch := make(chan Event, 64)
 
 	go func() {
-		defer w.Close()
+		defer func() { _ = w.Close() }()
 		defer close(ch)
 
 		const debounce = 50 * time.Millisecond
@@ -95,7 +100,7 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 					op = OpCreate
 					// If new directory, add to watcher
 					if info, err := os.Stat(ev.Name); err == nil && info.IsDir() {
-						w.Add(ev.Name)
+						_ = w.Add(ev.Name)
 					}
 				case ev.Has(fsnotify.Write):
 					op = OpWrite

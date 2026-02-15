@@ -1,3 +1,4 @@
+// Package copier handles file synchronization and ignore-pattern matching.
 package copier
 
 import (
@@ -7,17 +8,19 @@ import (
 	"strings"
 )
 
+// Ignorer determines which files should be excluded from syncing.
 type Ignorer struct {
 	patterns []string
 }
 
+// NewIgnorer creates an Ignorer from .gitignore (if enabled) and extra patterns.
 func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool) *Ignorer {
 	var patterns []string
 
 	if useGitignore {
 		gitignorePath := filepath.Join(srcDir, ".gitignore")
 		if f, err := os.Open(gitignorePath); err == nil {
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
 				line := strings.TrimSpace(scanner.Text())
@@ -34,6 +37,7 @@ func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool) *Ignor
 	return &Ignorer{patterns: patterns}
 }
 
+// ShouldIgnore reports whether the given relative path should be excluded.
 func (ig *Ignorer) ShouldIgnore(relPath string) bool {
 	// Always ignore .git/ and blink.toml
 	if relPath == "blink.toml" || relPath == ".git" || strings.HasPrefix(relPath, ".git/") || strings.HasPrefix(relPath, ".git\\") {
@@ -71,6 +75,7 @@ func (ig *Ignorer) ShouldIgnore(relPath string) bool {
 	return false
 }
 
+// CountFiles returns the number of non-ignored files under src.
 func CountFiles(src string, ig *Ignorer) (int, error) {
 	count := 0
 	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
@@ -98,6 +103,7 @@ func CountFiles(src string, ig *Ignorer) (int, error) {
 	return count, err
 }
 
+// InitialSyncWithProgress copies files from src to dst, calling onFile after each file.
 func InitialSyncWithProgress(src, dst string, ig *Ignorer, onFile func(copied int)) (int, error) {
 	count := 0
 	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
@@ -133,6 +139,7 @@ func InitialSyncWithProgress(src, dst string, ig *Ignorer, onFile func(copied in
 	return count, err
 }
 
+// InitialSync copies all non-ignored files from src to dst.
 func InitialSync(src, dst string, ig *Ignorer) (int, error) {
 	count := 0
 
@@ -172,6 +179,7 @@ func InitialSync(src, dst string, ig *Ignorer) (int, error) {
 	return count, err
 }
 
+// CopyFile copies a single file from src to dst, creating directories as needed.
 func CopyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
@@ -185,6 +193,7 @@ func CopyFile(src, dst string) error {
 	return os.WriteFile(dst, data, 0o644)
 }
 
+// DeleteFile removes the file at dst, returning nil if it does not exist.
 func DeleteFile(dst string) error {
 	err := os.Remove(dst)
 	if os.IsNotExist(err) {

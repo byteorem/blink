@@ -7,9 +7,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// SyncFileMsg signals that one file was copied during initial sync.
 type SyncFileMsg struct{}
+
+// SyncDoneMsg signals that the initial sync is complete.
 type SyncDoneMsg struct{ Count int }
 
+// SyncModel is the Bubbletea model for the initial sync progress bar.
 type SyncModel struct {
 	total    int
 	copied   int
@@ -18,6 +22,7 @@ type SyncModel struct {
 	count    int
 }
 
+// NewSyncModel creates a new sync progress model.
 func NewSyncModel(total int) SyncModel {
 	p := progress.New(progress.WithDefaultGradient())
 	return SyncModel{
@@ -26,10 +31,12 @@ func NewSyncModel(total int) SyncModel {
 	}
 }
 
+// Init returns nil; sync progress is driven by external messages.
 func (m SyncModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update handles sync progress messages.
 func (m SyncModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -61,6 +68,7 @@ func (m SyncModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View renders the sync progress bar.
 func (m SyncModel) View() string {
 	if m.done {
 		return ""

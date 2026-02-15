@@ -9,7 +9,7 @@ import (
 func TestFindAddon_ExplicitPath(t *testing.T) {
 	dir := t.TempDir()
 	// Create a .toc file so addon name comes from it
-	os.WriteFile(filepath.Join(dir, "MyAddon.toc"), []byte("## Title: My Addon"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "MyAddon.toc"), []byte("## Title: My Addon"), 0o644)
 
 	srcDir, name, err := FindAddon(dir)
 	if err != nil {
@@ -40,11 +40,11 @@ func TestFindAddon_ExplicitPathNoToc(t *testing.T) {
 
 func TestFindAddon_AutoDetect(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "CoolAddon.toc"), []byte(""), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "CoolAddon.toc"), []byte(""), 0o644)
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(orig) }()
+	_ = os.Chdir(dir)
 
 	srcDir, name, err := FindAddon("auto")
 	if err != nil {
@@ -61,12 +61,12 @@ func TestFindAddon_AutoDetect(t *testing.T) {
 func TestFindAddon_AutoDetectSubdir(t *testing.T) {
 	dir := t.TempDir()
 	sub := filepath.Join(dir, "SubAddon")
-	os.MkdirAll(sub, 0o755)
-	os.WriteFile(filepath.Join(sub, "SubAddon.toc"), []byte(""), 0o644)
+	_ = os.MkdirAll(sub, 0o755)
+	_ = os.WriteFile(filepath.Join(sub, "SubAddon.toc"), []byte(""), 0o644)
 
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(orig) }()
+	_ = os.Chdir(dir)
 
 	_, name, err := FindAddon("auto")
 	if err != nil {
@@ -80,8 +80,8 @@ func TestFindAddon_AutoDetectSubdir(t *testing.T) {
 func TestFindAddon_NoTocError(t *testing.T) {
 	dir := t.TempDir()
 	orig, _ := os.Getwd()
-	defer os.Chdir(orig)
-	os.Chdir(dir)
+	defer func() { _ = os.Chdir(orig) }()
+	_ = os.Chdir(dir)
 
 	_, _, err := FindAddon("auto")
 	if err == nil {

@@ -1,3 +1,4 @@
+// Package ui provides Bubbletea TUI components for blink.
 package ui
 
 import (
@@ -32,6 +33,7 @@ type changeEntry struct {
 	action  string
 }
 
+// Model is the Bubbletea model for the main watcher TUI.
 type Model struct {
 	addonName  string
 	targetPath string
@@ -44,12 +46,16 @@ type Model struct {
 	quitting   bool
 }
 
+// WatcherEventMsg wraps a watcher event for the Bubbletea update loop.
 type WatcherEventMsg watcher.Event
+
+// FileChangedMsg signals that a file was synced or removed.
 type FileChangedMsg struct {
 	relPath string
 	action  string
 }
 
+// NewModel creates a new watcher TUI model.
 func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, eventCh <-chan watcher.Event) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -66,6 +72,7 @@ func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, event
 	}
 }
 
+// Init starts the spinner and watcher listener.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Tick, listenToWatcher(m.eventCh))
 }
@@ -80,6 +87,7 @@ func listenToWatcher(ch <-chan watcher.Event) tea.Cmd {
 	}
 }
 
+// Update handles incoming messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -125,22 +133,23 @@ func (m Model) handleEvent(ev watcher.Event) tea.Cmd {
 
 		switch ev.Op {
 		case watcher.OpRemove:
-			copier.DeleteFile(dstPath)
+			_ = copier.DeleteFile(dstPath)
 			return FileChangedMsg{relPath: ev.RelPath, action: "removed"}
 		case watcher.OpRename:
 			if _, err := os.Stat(srcPath); err == nil {
-				copier.CopyFile(srcPath, dstPath)
+				_ = copier.CopyFile(srcPath, dstPath)
 				return FileChangedMsg{relPath: ev.RelPath, action: "copied"}
 			}
-			copier.DeleteFile(dstPath)
+			_ = copier.DeleteFile(dstPath)
 			return FileChangedMsg{relPath: ev.RelPath, action: "removed"}
 		default:
-			copier.CopyFile(srcPath, dstPath)
+			_ = copier.CopyFile(srcPath, dstPath)
 			return FileChangedMsg{relPath: ev.RelPath, action: "copied"}
 		}
 	}
 }
 
+// View renders the TUI.
 func (m Model) View() string {
 	if m.quitting {
 		return ""
