@@ -65,6 +65,7 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 				ch <- ev
 			}
 			pending = make(map[string]Event)
+			timer = nil
 			timerC = nil
 		}
 

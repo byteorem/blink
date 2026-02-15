@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -120,7 +121,14 @@ func (m Model) handleEvent(ev watcher.Event) tea.Cmd {
 		srcPath := filepath.Join(m.srcDir, ev.RelPath)
 
 		switch ev.Op {
-		case watcher.OpRemove, watcher.OpRename:
+		case watcher.OpRemove:
+			copier.DeleteFile(dstPath)
+			return FileChangedMsg{relPath: ev.RelPath, action: "removed"}
+		case watcher.OpRename:
+			if _, err := os.Stat(srcPath); err == nil {
+				copier.CopyFile(srcPath, dstPath)
+				return FileChangedMsg{relPath: ev.RelPath, action: "copied"}
+			}
 			copier.DeleteFile(dstPath)
 			return FileChangedMsg{relPath: ev.RelPath, action: "removed"}
 		default:
@@ -136,7 +144,7 @@ func (m Model) View() string {
 	}
 
 	s := "\n"
-	s += headerStyle.Render(" blink v0.1.0") + "\n\n"
+	s += headerStyle.Render(" ✨ blink v0.1.0") + "\n\n"
 	s += dotStyle.Render(" ●") + " Watching   " + m.addonName + "\n"
 	s += dotStyle.Render(" ●") + " Target     " + m.targetPath + " (" + m.version + ")\n"
 	s += dotStyle.Render(" ●") + fmt.Sprintf(" Files      %d synced", m.fileCount) + "\n"
