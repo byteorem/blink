@@ -1,8 +1,10 @@
 # Build
 blink
+dist/
 
-# Dependencies
-go.sum
+# Test
+coverage.out
+coverage.html
 
 # Claude
 .claude/
