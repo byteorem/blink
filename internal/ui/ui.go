@@ -16,9 +16,14 @@ import (
 const maxChangelog = 5
 
 var (
-	headerStyle = lipgloss.NewStyle().Bold(true)
-	dotStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // green
-	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	headerStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220")) // yellow/gold
+	dotStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))             // green
+	labelStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))            // dim label
+	pathStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("14"))             // cyan
+	arrowStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))            // dim arrow
+	copiedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))             // green
+	removedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))              // red
+	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
 type changeEntry struct {
@@ -30,7 +35,6 @@ type changeEntry struct {
 type Model struct {
 	addonName  string
 	targetPath string
-	version    string
 	fileCount  int
 	spinner    spinner.Model
 	changelog  []changeEntry
@@ -46,7 +50,7 @@ type FileChangedMsg struct {
 	action  string
 }
 
-func NewModel(addonName, targetPath, version, srcDir, dstDir string, fileCount int, eventCh <-chan watcher.Event) Model {
+func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, eventCh <-chan watcher.Event) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
@@ -54,7 +58,6 @@ func NewModel(addonName, targetPath, version, srcDir, dstDir string, fileCount i
 	return Model{
 		addonName:  addonName,
 		targetPath: targetPath,
-		version:    version,
 		fileCount:  fileCount,
 		spinner:    s,
 		srcDir:     srcDir,
@@ -144,17 +147,24 @@ func (m Model) View() string {
 	}
 
 	s := "\n"
-	s += headerStyle.Render(" ✨ blink v0.1.0") + "\n\n"
-	s += dotStyle.Render(" ●") + " Watching   " + m.addonName + "\n"
-	s += dotStyle.Render(" ●") + " Target     " + m.targetPath + " (" + m.version + ")\n"
-	s += dotStyle.Render(" ●") + fmt.Sprintf(" Files      %d synced", m.fileCount) + "\n"
+	s += " " + headerStyle.Render("✨ blink") + "\n\n"
+	s += dotStyle.Render(" ●") + labelStyle.Render(" Watching   ") + m.addonName + "\n"
+	s += dotStyle.Render(" ●") + labelStyle.Render(" Target     ") + m.targetPath + "\n"
+	s += dotStyle.Render(" ●") + labelStyle.Render(" Files      ") + fmt.Sprintf("%d synced", m.fileCount) + "\n"
 	s += "\n"
 	s += " " + m.spinner.View() + " Watching for changes...\n"
 	s += "\n"
 
 	for _, entry := range m.changelog {
 		ts := entry.time.Format("15:04:05")
-		s += dimStyle.Render("  "+ts) + "  " + entry.relPath + " → " + entry.action + "\n"
+		actionStyled := entry.action
+		switch entry.action {
+		case "copied":
+			actionStyled = copiedStyle.Render(entry.action)
+		case "removed":
+			actionStyled = removedStyle.Render(entry.action)
+		}
+		s += dimStyle.Render("  "+ts) + "  " + pathStyle.Render(entry.relPath) + " " + arrowStyle.Render("→") + " " + actionStyled + "\n"
 	}
 
 	if len(m.changelog) > 0 {

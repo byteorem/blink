@@ -9,18 +9,16 @@ import (
 
 type Config struct {
 	Source       string   `toml:"source"`
-	WowPath      string   `toml:"wowPath"`
-	Version      string   `toml:"version"`
-	Ignore       []string `toml:"ignore"`
-	UseGitignore bool     `toml:"useGitignore"`
+	WowPath     string   `toml:"wowPath"`
+	Ignore      []string `toml:"ignore"`
+	UseGitignore bool    `toml:"useGitignore"`
 }
 
 func Defaults() Config {
 	return Config{
 		Source:       "auto",
-		WowPath:      "auto",
-		Version:      "retail",
-		Ignore:       []string{},
+		WowPath:     "auto",
+		Ignore:      []string{},
 		UseGitignore: true,
 	}
 }
@@ -39,26 +37,11 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
-var validVersions = map[string]bool{
-	"retail":      true,
-	"classic":     true,
-	"classic_era": true,
-}
-
-func MergeFlags(cfg *Config, source, wowPath, version string) error {
+func MergeFlags(cfg *Config, source, wowPath string) {
 	if source != "" {
 		cfg.Source = source
 	}
 	if wowPath != "" {
 		cfg.WowPath = wowPath
 	}
-	if version != "" {
-		cfg.Version = version
-	}
-
-	if !validVersions[cfg.Version] {
-		return fmt.Errorf("invalid version %q: must be retail, classic, or classic_era", cfg.Version)
-	}
-
-	return nil
 }

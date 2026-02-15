@@ -74,7 +74,8 @@ func FindWowPath(wowPathFlag string) (string, error) {
 		return wowPathFlag, nil
 	}
 
-	candidates := []string{
+	// Auto-detect: look for WoW version folders
+	bases := []string{
 		"/mnt/c/Program Files (x86)/World of Warcraft",
 		"/mnt/c/Program Files/World of Warcraft",
 		"/mnt/d/World of Warcraft",
@@ -83,21 +84,16 @@ func FindWowPath(wowPathFlag string) (string, error) {
 		"/mnt/e/Program Files/World of Warcraft",
 	}
 
-	for _, p := range candidates {
-		if info, err := os.Stat(p); err == nil && info.IsDir() {
-			return p, nil
+	versionDirs := []string{"_retail_", "_classic_", "_classic_era_"}
+
+	for _, base := range bases {
+		for _, ver := range versionDirs {
+			p := filepath.Join(base, ver)
+			if info, err := os.Stat(p); err == nil && info.IsDir() {
+				return p, nil
+			}
 		}
 	}
 
 	return "", fmt.Errorf("WoW installation not found — set wowPath in blink.toml or use --wow-path")
-}
-
-var versionDirs = map[string]string{
-	"retail":      "_retail_",
-	"classic":     "_classic_",
-	"classic_era": "_classic_era_",
-}
-
-func BuildTargetPath(wowPath, version, addonName string) string {
-	return filepath.Join(wowPath, versionDirs[version], "Interface", "AddOns", addonName)
 }

@@ -7,7 +7,6 @@ A hot-reload style CLI tool for World of Warcraft addon developers. Watches your
 - **File watching** — Detects changes via OS-level events and copies files instantly
 - **Auto-detect addon source** — Finds your addon by scanning for `.toc` files, or specify a path manually
 - **Auto-detect WoW path** — Finds your WoW installation from common WSL `/mnt/` paths
-- **Version targeting** — Target `retail`, `classic`, or `classic_era`
 - **Smart ignore** — Respects `.gitignore` automatically, with additional patterns via config
 - **Deletion sync** — Target mirrors source exactly; removed source files are cleaned up
 - **Polished TUI** — Spinner, status header, and rolling change log; falls back to plain text when piped
@@ -46,17 +45,14 @@ blink [flags]
 
 Flags:
   --source, -s      Path to addon source (default: auto-detect via .toc files)
-  --wow-path, -w    WoW installation root (default: auto-detect)
-  --version, -v     WoW version: retail, classic, classic_era (default: retail)
+  --wow-path, -w    Path to WoW version folder, e.g. /path/to/WoW/_retail_ (default: auto-detect)
   --no-watch        One-time copy, don't watch for changes
+  --version, -v     Print the version
 ```
 
 ```bash
-# Specify source and WoW version
-blink --source ./MyAddon --version classic
-
 # Specify a custom WoW path
-blink --source ./MyAddon --wow-path "/mnt/c/Program Files/World of Warcraft"
+blink --source ./MyAddon --wow-path "/mnt/c/Program Files/World of Warcraft/_retail_"
 
 # One-time copy without watching
 blink --no-watch
@@ -68,8 +64,7 @@ Blink can be configured via a `blink.toml` file in your project root:
 
 ```toml
 source = "./MyAddon"
-wowPath = "auto"
-version = "retail"
+wowPath = "/mnt/c/Program Files/World of Warcraft/_retail_"
 ignore = ["*.md", "tests/"]
 useGitignore = true
 ```
@@ -77,8 +72,7 @@ useGitignore = true
 | Field          | Description                                              | Default    |
 |----------------|----------------------------------------------------------|------------|
 | `source`       | Path to addon source, or auto-detect via `.toc` files    | `"auto"`   |
-| `wowPath`      | WoW install root, or `"auto"` for auto-detection         | `"auto"`   |
-| `version`      | WoW version: `retail`, `classic`, `classic_era`          | `"retail"` |
+| `wowPath`      | Path to WoW version folder (e.g. `.../_retail_`), or `"auto"` | `"auto"` |
 | `ignore`       | Additional glob patterns to ignore (on top of .gitignore)| `[]`       |
 | `useGitignore` | Respect `.gitignore` patterns                            | `true`     |
 
@@ -95,10 +89,10 @@ See [`blink.toml.example`](blink.toml.example) for a commented template.
 ## Example Output
 
 ```
- blink v0.1.0
+ ✨ blink
 
  ● Watching   MyAddon
- ● Target     /mnt/c/.../AddOns/MyAddon (retail)
+ ● Target     /mnt/c/.../AddOns/MyAddon
  ● Files      12 synced
 
  ⠋ Watching for changes...
@@ -114,7 +108,7 @@ When piped or run outside a TTY, blink falls back to plain text output:
 
 ```
 blink v0.1.0 — watching MyAddon
-target: /mnt/c/.../AddOns/MyAddon (retail)
+target: /mnt/c/.../AddOns/MyAddon
 synced 12 files
 14:32:01  MyAddon.lua → copied
 ```

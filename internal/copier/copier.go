@@ -71,6 +71,68 @@ func (ig *Ignorer) ShouldIgnore(relPath string) bool {
 	return false
 }
 
+func CountFiles(src string, ig *Ignorer) (int, error) {
+	count := 0
+	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if relPath == "." {
+			return nil
+		}
+		if ig.ShouldIgnore(relPath) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.IsDir() {
+			count++
+		}
+		return nil
+	})
+	return count, err
+}
+
+func InitialSyncWithProgress(src, dst string, ig *Ignorer, onFile func(copied int)) (int, error) {
+	count := 0
+	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if relPath == "." {
+			return nil
+		}
+		if ig.ShouldIgnore(relPath) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		dstPath := filepath.Join(dst, relPath)
+		if err := CopyFile(path, dstPath); err != nil {
+			return err
+		}
+		count++
+		if onFile != nil {
+			onFile(count)
+		}
+		return nil
+	})
+	return count, err
+}
+
 func InitialSync(src, dst string, ig *Ignorer) (int, error) {
 	count := 0
 

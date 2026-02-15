@@ -15,9 +15,6 @@ func TestDefaults(t *testing.T) {
 	if cfg.WowPath != "auto" {
 		t.Errorf("WowPath = %q, want %q", cfg.WowPath, "auto")
 	}
-	if cfg.Version != "retail" {
-		t.Errorf("Version = %q, want %q", cfg.Version, "retail")
-	}
 	if cfg.UseGitignore != true {
 		t.Error("UseGitignore = false, want true")
 	}
@@ -27,7 +24,6 @@ func TestDefaults(t *testing.T) {
 }
 
 func TestLoad_NoFile(t *testing.T) {
-	// Run in a temp dir with no blink.toml
 	orig, _ := os.Getwd()
 	defer os.Chdir(orig)
 	os.Chdir(t.TempDir())
@@ -36,8 +32,8 @@ func TestLoad_NoFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.Version != "retail" {
-		t.Errorf("Version = %q, want %q", cfg.Version, "retail")
+	if cfg.Source != "auto" {
+		t.Errorf("Source = %q, want %q", cfg.Source, "auto")
 	}
 }
 
@@ -48,8 +44,7 @@ func TestLoad_ValidTOML(t *testing.T) {
 	os.Chdir(dir)
 
 	toml := `source = "/my/addon"
-wowPath = "/mnt/c/WoW"
-version = "classic"
+wowPath = "/mnt/c/WoW/_retail_"
 ignore = ["*.bak"]
 useGitignore = false
 `
@@ -62,8 +57,8 @@ useGitignore = false
 	if cfg.Source != "/my/addon" {
 		t.Errorf("Source = %q, want %q", cfg.Source, "/my/addon")
 	}
-	if cfg.Version != "classic" {
-		t.Errorf("Version = %q, want %q", cfg.Version, "classic")
+	if cfg.WowPath != "/mnt/c/WoW/_retail_" {
+		t.Errorf("WowPath = %q, want %q", cfg.WowPath, "/mnt/c/WoW/_retail_")
 	}
 	if cfg.UseGitignore != false {
 		t.Error("UseGitignore = true, want false")
@@ -92,29 +87,22 @@ func TestMergeFlags(t *testing.T) {
 		name    string
 		source  string
 		wowPath string
-		version string
-		wantVer string
-		wantErr bool
 	}{
-		{"no flags", "", "", "", "retail", false},
-		{"override version", "", "", "classic", "classic", false},
-		{"classic_era", "", "", "classic_era", "classic_era", false},
-		{"invalid version", "", "", "beta", "", true},
-		{"override source", "/foo", "", "", "retail", false},
+		{"no flags", "", ""},
+		{"override source", "/foo", ""},
+		{"override wowPath", "", "/mnt/c/WoW/_retail_"},
+		{"override both", "/foo", "/mnt/c/WoW/_retail_"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Defaults()
-			err := MergeFlags(&cfg, tt.source, tt.wowPath, tt.version)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("MergeFlags() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !tt.wantErr && cfg.Version != tt.wantVer {
-				t.Errorf("Version = %q, want %q", cfg.Version, tt.wantVer)
-			}
-			if tt.source != "" && !tt.wantErr && cfg.Source != tt.source {
+			MergeFlags(&cfg, tt.source, tt.wowPath)
+			if tt.source != "" && cfg.Source != tt.source {
 				t.Errorf("Source = %q, want %q", cfg.Source, tt.source)
+			}
+			if tt.wowPath != "" && cfg.WowPath != tt.wowPath {
+				t.Errorf("WowPath = %q, want %q", cfg.WowPath, tt.wowPath)
 			}
 		})
 	}

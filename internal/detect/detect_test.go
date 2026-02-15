@@ -106,24 +106,3 @@ func TestFindWowPath_InvalidPath(t *testing.T) {
 		t.Fatal("FindWowPath() expected error for nonexistent path")
 	}
 }
-
-func TestBuildTargetPath(t *testing.T) {
-	tests := []struct {
-		version string
-		dir     string
-	}{
-		{"retail", "_retail_"},
-		{"classic", "_classic_"},
-		{"classic_era", "_classic_era_"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.version, func(t *testing.T) {
-			got := BuildTargetPath("/wow", tt.version, "TestAddon")
-			want := filepath.Join("/wow", tt.dir, "Interface", "AddOns", "TestAddon")
-			if got != want {
-				t.Errorf("BuildTargetPath() = %q, want %q", got, want)
-			}
-		})
-	}
-}
