@@ -86,7 +86,7 @@ func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, event
 
 // Init starts the spinner and watcher listener.
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.spinner.Tick, listenToWatcher(m.eventCh))
+	return tea.Batch(tea.ClearScreen, m.spinner.Tick, listenToWatcher(m.eventCh))
 }
 
 func listenToWatcher(ch <-chan watcher.Event) tea.Cmd {
