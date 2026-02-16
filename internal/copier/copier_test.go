@@ -7,7 +7,7 @@ import (
 )
 
 func TestShouldIgnore_AlwaysIgnored(t *testing.T) {
-	ig := &Ignorer{}
+	ig := NewIgnorer(t.TempDir(), nil, false, false)
 
 	alwaysIgnored := []string{"blink.toml", ".git", ".git/config", ".git/HEAD"}
 	for _, p := range alwaysIgnored {
@@ -18,7 +18,7 @@ func TestShouldIgnore_AlwaysIgnored(t *testing.T) {
 }
 
 func TestShouldIgnore_GlobPatterns(t *testing.T) {
-	ig := &Ignorer{patterns: []string{"*.bak", "*.log"}}
+	ig := NewIgnorer(t.TempDir(), []string{"*.bak", "*.log"}, false, false)
 
 	if !ig.ShouldIgnore("test.bak") {
 		t.Error("ShouldIgnore(test.bak) = false, want true")
@@ -32,7 +32,7 @@ func TestShouldIgnore_GlobPatterns(t *testing.T) {
 }
 
 func TestShouldIgnore_DirPatterns(t *testing.T) {
-	ig := &Ignorer{patterns: []string{"node_modules/"}}
+	ig := NewIgnorer(t.TempDir(), []string{"node_modules/"}, false, false)
 
 	if !ig.ShouldIgnore("node_modules") {
 		t.Error("ShouldIgnore(node_modules) = false, want true")
@@ -188,8 +188,8 @@ func TestNewIgnorer_PkgMetaNoIgnoreBlock(t *testing.T) {
 
 	ig := NewIgnorer(dir, nil, false, true)
 
-	if len(ig.patterns) != 0 {
-		t.Errorf("patterns = %v, want empty", ig.patterns)
+	if ig.ShouldIgnore("main.lua") {
+		t.Error("should not ignore main.lua with no pkgmeta ignore block")
 	}
 }
 
@@ -204,7 +204,7 @@ func TestCleanDestination_RemovesStaleFiles(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dst, "main.lua"), []byte("keep"), 0o644)
 	_ = os.WriteFile(filepath.Join(dst, "old.lua"), []byte("stale"), 0o644)
 
-	removed, err := CleanDestination(src, dst)
+	removed, err := CleanDestination(src, dst, nil)
 	if err != nil {
 		t.Fatalf("CleanDestination() error = %v", err)
 	}
@@ -227,7 +227,7 @@ func TestCleanDestination_RemovesEmptyDirs(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dst, "libs"), 0o755)
 	_ = os.WriteFile(filepath.Join(dst, "libs", "old.lua"), []byte("stale"), 0o644)
 
-	removed, err := CleanDestination(src, dst)
+	removed, err := CleanDestination(src, dst, nil)
 	if err != nil {
 		t.Fatalf("CleanDestination() error = %v", err)
 	}
@@ -241,12 +241,50 @@ func TestCleanDestination_RemovesEmptyDirs(t *testing.T) {
 
 func TestCleanDestination_NonExistentDst(t *testing.T) {
 	src := t.TempDir()
-	removed, err := CleanDestination(src, "/nonexistent/path")
+	removed, err := CleanDestination(src, "/nonexistent/path", nil)
 	if err != nil {
 		t.Fatalf("CleanDestination() error = %v", err)
 	}
 	if removed != 0 {
 		t.Errorf("removed = %d, want 0", removed)
+	}
+}
+
+func TestCleanDestination_RemovesIgnoredFiles(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	// Source and dst both have main.lua (should be kept)
+	_ = os.WriteFile(filepath.Join(src, "main.lua"), []byte("keep"), 0o644)
+	_ = os.WriteFile(filepath.Join(dst, "main.lua"), []byte("keep"), 0o644)
+
+	// Dst has files that match ignore patterns (previously synced)
+	_ = os.MkdirAll(filepath.Join(dst, ".github", "workflows"), 0o755)
+	_ = os.WriteFile(filepath.Join(dst, ".github", "workflows", "ci.yml"), []byte("ci"), 0o644)
+	_ = os.WriteFile(filepath.Join(dst, "README.md"), []byte("readme"), 0o644)
+
+	// Source also has these files (they exist in source but should still be cleaned because they're ignored)
+	_ = os.MkdirAll(filepath.Join(src, ".github", "workflows"), 0o755)
+	_ = os.WriteFile(filepath.Join(src, ".github", "workflows", "ci.yml"), []byte("ci"), 0o644)
+	_ = os.WriteFile(filepath.Join(src, "README.md"), []byte("readme"), 0o644)
+
+	ig := NewIgnorer(src, []string{".github/", "README.md"}, false, false)
+
+	removed, err := CleanDestination(src, dst, ig)
+	if err != nil {
+		t.Fatalf("CleanDestination() error = %v", err)
+	}
+	if removed != 2 {
+		t.Errorf("removed = %d, want 2", removed)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "main.lua")); err != nil {
+		t.Error("main.lua should still exist")
+	}
+	if _, err := os.Stat(filepath.Join(dst, "README.md")); !os.IsNotExist(err) {
+		t.Error("README.md should be removed")
+	}
+	if _, err := os.Stat(filepath.Join(dst, ".github")); !os.IsNotExist(err) {
+		t.Error(".github/ dir should be removed")
 	}
 }
 

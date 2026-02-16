@@ -92,7 +92,7 @@ func run(c *cli.Context) error {
 	targetPath := filepath.Join(wowPath, "Interface", "AddOns", addonName)
 	ig := copier.NewIgnorer(srcDir, cfg.Ignore, cfg.UseGitignore, cfg.UsePkgMeta)
 
-	cleaned, err := copier.CleanDestination(srcDir, targetPath)
+	cleaned, err := copier.CleanDestination(srcDir, targetPath, ig)
 	if err != nil {
 		return fmt.Errorf("cleanup failed: %w", err)
 	}

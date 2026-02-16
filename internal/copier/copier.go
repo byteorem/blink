@@ -6,16 +6,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	cp "github.com/otiai10/copy"
+	ignore "github.com/sabhiram/go-gitignore"
 )
 
 // Ignorer determines which files should be excluded from syncing.
 type Ignorer struct {
-	patterns []string
+	gi *ignore.GitIgnore
 }
 
 // NewIgnorer creates an Ignorer from .gitignore, .pkgmeta (if enabled), and extra patterns.
 func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool, usePkgMeta bool) *Ignorer {
-	var patterns []string
+	patterns := []string{"blink.toml", ".git"}
 
 	if useGitignore {
 		gitignorePath := filepath.Join(srcDir, ".gitignore")
@@ -38,7 +41,7 @@ func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool, usePkg
 
 	patterns = append(patterns, extraPatterns...)
 
-	return &Ignorer{patterns: patterns}
+	return &Ignorer{gi: ignore.CompileIgnoreLines(patterns...)}
 }
 
 // parsePkgMetaIgnore reads .pkgmeta and extracts patterns from the ignore: block.
@@ -75,39 +78,14 @@ func parsePkgMetaIgnore(srcDir string) []string {
 
 // ShouldIgnore reports whether the given relative path should be excluded.
 func (ig *Ignorer) ShouldIgnore(relPath string) bool {
-	// Always ignore .git/ and blink.toml
-	if relPath == "blink.toml" || relPath == ".git" || strings.HasPrefix(relPath, ".git/") || strings.HasPrefix(relPath, ".git\\") {
+	if ig.gi.MatchesPath(relPath) {
 		return true
 	}
-
-	base := filepath.Base(relPath)
-
-	for _, pattern := range ig.patterns {
-		// Directory pattern (trailing slash)
-		if strings.HasSuffix(pattern, "/") {
-			dirName := strings.TrimSuffix(pattern, "/")
-			// Check if the relPath starts with this dir or contains it as a segment
-			if relPath == dirName || strings.HasPrefix(relPath, dirName+"/") || strings.HasPrefix(relPath, dirName+"\\") {
-				return true
-			}
-			// Check path segments
-			for _, seg := range strings.Split(filepath.ToSlash(relPath), "/") {
-				if seg == dirName {
-					return true
-				}
-			}
-			continue
-		}
-
-		// Match against full relative path and base name
-		if matched, _ := filepath.Match(pattern, base); matched {
-			return true
-		}
-		if matched, _ := filepath.Match(pattern, relPath); matched {
-			return true
-		}
+	// Also check with trailing slash so directory-only patterns (e.g. "node_modules/")
+	// match the directory path itself, not just its children.
+	if !strings.HasSuffix(relPath, "/") {
+		return ig.gi.MatchesPath(relPath + "/")
 	}
-
 	return false
 }
 
@@ -142,35 +120,26 @@ func CountFiles(src string, ig *Ignorer) (int, error) {
 // InitialSyncWithProgress copies files from src to dst, calling onFile after each file.
 func InitialSyncWithProgress(src, dst string, ig *Ignorer, onFile func(copied int)) (int, error) {
 	count := 0
-	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		if relPath == "." {
-			return nil
-		}
-		if ig.ShouldIgnore(relPath) {
-			if d.IsDir() {
-				return filepath.SkipDir
+	err := cp.Copy(src, dst, cp.Options{
+		Skip: func(info os.FileInfo, srcPath, _ string) (bool, error) {
+			rel, err := filepath.Rel(src, srcPath)
+			if err != nil || rel == "." {
+				return false, nil
 			}
-			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		dstPath := filepath.Join(dst, relPath)
-		if err := CopyFile(path, dstPath); err != nil {
-			return err
-		}
-		count++
-		if onFile != nil {
-			onFile(count)
-		}
-		return nil
+			if ig.ShouldIgnore(rel) {
+				return true, nil
+			}
+			if !info.IsDir() {
+				count++
+				if onFile != nil {
+					onFile(count)
+				}
+			}
+			return false, nil
+		},
+		OnDirExists: func(_, _ string) cp.DirExistsAction {
+			return cp.Merge
+		},
 	})
 	return count, err
 }
@@ -178,40 +147,24 @@ func InitialSyncWithProgress(src, dst string, ig *Ignorer, onFile func(copied in
 // InitialSync copies all non-ignored files from src to dst.
 func InitialSync(src, dst string, ig *Ignorer) (int, error) {
 	count := 0
-
-	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		if relPath == "." {
-			return nil
-		}
-
-		if ig.ShouldIgnore(relPath) {
-			if d.IsDir() {
-				return filepath.SkipDir
+	err := cp.Copy(src, dst, cp.Options{
+		Skip: func(info os.FileInfo, srcPath, _ string) (bool, error) {
+			rel, err := filepath.Rel(src, srcPath)
+			if err != nil || rel == "." {
+				return false, nil
 			}
-			return nil
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-		if err := CopyFile(path, dstPath); err != nil {
-			return err
-		}
-		count++
-		return nil
+			if ig.ShouldIgnore(rel) {
+				return true, nil
+			}
+			if !info.IsDir() {
+				count++
+			}
+			return false, nil
+		},
+		OnDirExists: func(_, _ string) cp.DirExistsAction {
+			return cp.Merge
+		},
 	})
-
 	return count, err
 }
 
@@ -229,9 +182,9 @@ func CopyFile(src, dst string) error {
 	return os.WriteFile(dst, data, 0o644)
 }
 
-// CleanDestination removes files from dst that don't exist in src.
-// Returns the count of removed files.
-func CleanDestination(src, dst string) (int, error) {
+// CleanDestination removes files from dst that don't exist in src or match
+// ignore rules. Returns the count of removed files.
+func CleanDestination(src, dst string, ig *Ignorer) (int, error) {
 	if _, err := os.Stat(dst); os.IsNotExist(err) {
 		return 0, nil
 	}
@@ -250,8 +203,16 @@ func CleanDestination(src, dst string) (int, error) {
 		if relPath == "." || d.IsDir() {
 			return nil
 		}
-		srcPath := filepath.Join(src, relPath)
-		if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		shouldRemove := false
+		if ig != nil && ig.ShouldIgnore(relPath) {
+			shouldRemove = true
+		} else {
+			srcPath := filepath.Join(src, relPath)
+			if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+				shouldRemove = true
+			}
+		}
+		if shouldRemove {
 			if err := os.Remove(path); err != nil {
 				return err
 			}
