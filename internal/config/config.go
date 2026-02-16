@@ -15,6 +15,8 @@ type Config struct {
 	Ignore       []string `toml:"ignore"`
 	UseGitignore bool     `toml:"useGitignore"`
 	UsePkgMeta   bool     `toml:"usePkgMeta"`
+	Delay        int      `toml:"delay"` // debounce delay in milliseconds
+	Verbose      bool     `toml:"verbose"`
 }
 
 // Defaults returns a Config with default values.
@@ -25,6 +27,7 @@ func Defaults() Config {
 		Ignore:       []string{},
 		UseGitignore: true,
 		UsePkgMeta:   true,
+		Delay:        50,
 	}
 }
 
@@ -44,11 +47,17 @@ func Load() (Config, error) {
 }
 
 // MergeFlags overrides config values with non-empty CLI flags.
-func MergeFlags(cfg *Config, source, wowPath string) {
+func MergeFlags(cfg *Config, source, wowPath string, delay int, verbose bool) {
 	if source != "" {
 		cfg.Source = source
 	}
 	if wowPath != "" {
 		cfg.WowPath = wowPath
+	}
+	if delay > 0 {
+		cfg.Delay = delay
+	}
+	if verbose {
+		cfg.Verbose = true
 	}
 }

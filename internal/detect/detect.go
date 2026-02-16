@@ -77,26 +77,5 @@ func FindWowPath(wowPathFlag string) (string, error) {
 		return wowPathFlag, nil
 	}
 
-	// Auto-detect: look for WoW version folders
-	bases := []string{
-		"/mnt/c/Program Files (x86)/World of Warcraft",
-		"/mnt/c/Program Files/World of Warcraft",
-		"/mnt/d/World of Warcraft",
-		"/mnt/d/Program Files/World of Warcraft",
-		"/mnt/e/World of Warcraft",
-		"/mnt/e/Program Files/World of Warcraft",
-	}
-
-	versionDirs := []string{"_retail_", "_classic_", "_classic_era_"}
-
-	for _, base := range bases {
-		for _, ver := range versionDirs {
-			p := filepath.Join(base, ver)
-			if info, err := os.Stat(p); err == nil && info.IsDir() {
-				return p, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("WoW installation not found — set wowPath in blink.toml or use --wow-path")
+	return "", fmt.Errorf("wowPath is required — set wowPath in blink.toml or use --wow-path")
 }

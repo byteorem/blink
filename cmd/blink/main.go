@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/byteorem/blink/internal/config"
@@ -41,6 +43,16 @@ func main() {
 				Name:  "no-watch",
 				Usage: "One-time copy, don't watch for changes",
 			},
+			&cli.IntFlag{
+				Name:    "delay",
+				Aliases: []string{"d"},
+				Usage:   "Debounce delay in milliseconds (default: 50)",
+			},
+			&cli.BoolFlag{
+				Name:    "verbose",
+				Aliases: []string{"v"},
+				Usage:   "Enable verbose logging",
+			},
 		},
 		Action: run,
 	}
@@ -56,7 +68,12 @@ func run(c *cli.Context) error {
 		return err
 	}
 
-	config.MergeFlags(&cfg, c.String("source"), c.String("wow-path"))
+	config.MergeFlags(&cfg, c.String("source"), c.String("wow-path"), c.Int("delay"), c.Bool("verbose"))
+
+	if cfg.Verbose {
+		log.Printf("[verbose] config: source=%q wowPath=%q delay=%dms gitignore=%v pkgmeta=%v ignore=%v",
+			cfg.Source, cfg.WowPath, cfg.Delay, cfg.UseGitignore, cfg.UsePkgMeta, cfg.Ignore)
+	}
 
 	srcDir, addonName, err := detect.FindAddon(cfg.Source)
 	if err != nil {
@@ -66,6 +83,11 @@ func run(c *cli.Context) error {
 	wowPath, err := detect.FindWowPath(cfg.WowPath)
 	if err != nil {
 		return err
+	}
+
+	if cfg.Verbose {
+		log.Printf("[verbose] detected addon %q at %s", addonName, srcDir)
+		log.Printf("[verbose] WoW path: %s", wowPath)
 	}
 
 	targetPath := filepath.Join(wowPath, "Interface", "AddOns", addonName)
@@ -117,16 +139,16 @@ func run(c *cli.Context) error {
 		return nil
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	eventCh, err := watcher.Watch(ctx, srcDir, ig)
+	eventCh, err := watcher.Watch(ctx, srcDir, ig, cfg.Delay, cfg.Verbose)
 	if err != nil {
 		return fmt.Errorf("failed to start watcher: %w", err)
 	}
 
 	if isTTY {
-		m := ui.NewModel(addonName, targetPath, srcDir, targetPath, fileCount, eventCh)
+		m := ui.NewModel(addonName, targetPath, srcDir, targetPath, fileCount, eventCh, ig)
 		p := tea.NewProgram(m)
 		if _, err := p.Run(); err != nil {
 			return err
@@ -138,17 +160,29 @@ func run(c *cli.Context) error {
 		fmt.Printf("synced %d files\n", fileCount)
 
 		for ev := range eventCh {
+			ts := time.Now().Format("15:04:05")
+
+			if ev.Err != nil {
+				fmt.Fprintf(os.Stderr, "%s  watcher error: %v\n", ts, ev.Err)
+				continue
+			}
+
 			dstPath := filepath.Join(targetPath, ev.RelPath)
 			srcPath := filepath.Join(srcDir, ev.RelPath)
-			ts := time.Now().Format("15:04:05")
 
 			switch ev.Op {
 			case watcher.OpRemove, watcher.OpRename:
-				_ = copier.DeleteFile(dstPath)
-				fmt.Printf("%s  %s → removed\n", ts, ev.RelPath)
+				if err := copier.DeleteFile(dstPath); err != nil {
+					fmt.Fprintf(os.Stderr, "%s  %s → error: %v\n", ts, ev.RelPath, err)
+				} else {
+					fmt.Printf("%s  %s → removed\n", ts, ev.RelPath)
+				}
 			default:
-				_ = copier.CopyFile(srcPath, dstPath)
-				fmt.Printf("%s  %s → copied\n", ts, ev.RelPath)
+				if err := copier.CopyFile(srcPath, dstPath); err != nil {
+					fmt.Fprintf(os.Stderr, "%s  %s → error: %v\n", ts, ev.RelPath, err)
+				} else {
+					fmt.Printf("%s  %s → copied\n", ts, ev.RelPath)
+				}
 			}
 		}
 	}

@@ -106,3 +106,17 @@ func TestFindWowPath_InvalidPath(t *testing.T) {
 		t.Fatal("FindWowPath() expected error for nonexistent path")
 	}
 }
+
+func TestFindWowPath_AutoReturnsError(t *testing.T) {
+	_, err := FindWowPath("auto")
+	if err == nil {
+		t.Fatal("FindWowPath(\"auto\") should return error requiring explicit path")
+	}
+}
+
+func TestFindWowPath_EmptyReturnsError(t *testing.T) {
+	_, err := FindWowPath("")
+	if err == nil {
+		t.Fatal("FindWowPath(\"\") should return error requiring explicit path")
+	}
+}

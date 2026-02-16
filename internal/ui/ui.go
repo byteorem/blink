@@ -24,6 +24,7 @@ var (
 	arrowStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))            // dim arrow
 	copiedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))             // green
 	removedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))              // red
+	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)   // bold red
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
@@ -31,6 +32,13 @@ type changeEntry struct {
 	time    time.Time
 	relPath string
 	action  string
+	isError bool
+}
+
+// ResyncCompleteMsg signals that a manual re-sync finished.
+type ResyncCompleteMsg struct {
+	count int
+	err   error
 }
 
 // Model is the Bubbletea model for the main watcher TUI.
@@ -43,7 +51,9 @@ type Model struct {
 	srcDir     string
 	dstDir     string
 	eventCh    <-chan watcher.Event
+	ignorer    *copier.Ignorer
 	quitting   bool
+	syncing    bool
 }
 
 // WatcherEventMsg wraps a watcher event for the Bubbletea update loop.
@@ -53,10 +63,11 @@ type WatcherEventMsg watcher.Event
 type FileChangedMsg struct {
 	relPath string
 	action  string
+	isError bool
 }
 
 // NewModel creates a new watcher TUI model.
-func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, eventCh <-chan watcher.Event) Model {
+func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, eventCh <-chan watcher.Event, ig *copier.Ignorer) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
@@ -69,6 +80,7 @@ func NewModel(addonName, targetPath, srcDir, dstDir string, fileCount int, event
 		srcDir:     srcDir,
 		dstDir:     dstDir,
 		eventCh:    eventCh,
+		ignorer:    ig,
 	}
 }
 
@@ -95,6 +107,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
+		case "r":
+			if !m.syncing {
+				m.syncing = true
+				return m, m.doResync()
+			}
 		}
 
 	case spinner.TickMsg:
@@ -104,17 +121,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case WatcherEventMsg:
 		ev := watcher.Event(msg)
+		if ev.Err != nil {
+			entry := changeEntry{
+				time:    time.Now(),
+				relPath: "watcher",
+				action:  fmt.Sprintf("error: %v", ev.Err),
+				isError: true,
+			}
+			m.changelog = append(m.changelog, entry)
+			if len(m.changelog) > maxChangelog {
+				m.changelog = m.changelog[len(m.changelog)-maxChangelog:]
+			}
+			return m, listenToWatcher(m.eventCh)
+		}
 		return m, tea.Batch(
 			m.handleEvent(ev),
 			listenToWatcher(m.eventCh),
 		)
 
+	case ResyncCompleteMsg:
+		m.syncing = false
+		if msg.err != nil {
+			entry := changeEntry{
+				time:    time.Now(),
+				relPath: "re-sync",
+				action:  fmt.Sprintf("error: %v", msg.err),
+				isError: true,
+			}
+			m.changelog = append(m.changelog, entry)
+		} else {
+			m.fileCount = msg.count
+			entry := changeEntry{
+				time:    time.Now(),
+				relPath: "re-sync",
+				action:  fmt.Sprintf("synced %d files", msg.count),
+			}
+			m.changelog = append(m.changelog, entry)
+		}
+		if len(m.changelog) > maxChangelog {
+			m.changelog = m.changelog[len(m.changelog)-maxChangelog:]
+		}
+		return m, nil
+
 	case FileChangedMsg:
-		m.fileCount++
+		if !msg.isError {
+			m.fileCount++
+		}
 		entry := changeEntry{
 			time:    time.Now(),
 			relPath: msg.relPath,
 			action:  msg.action,
+			isError: msg.isError,
 		}
 		m.changelog = append(m.changelog, entry)
 		if len(m.changelog) > maxChangelog {
@@ -126,6 +183,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) doResync() tea.Cmd {
+	return func() tea.Msg {
+		count, err := copier.InitialSync(m.srcDir, m.dstDir, m.ignorer)
+		return ResyncCompleteMsg{count: count, err: err}
+	}
+}
+
 func (m Model) handleEvent(ev watcher.Event) tea.Cmd {
 	return func() tea.Msg {
 		dstPath := filepath.Join(m.dstDir, ev.RelPath)
@@ -133,17 +197,25 @@ func (m Model) handleEvent(ev watcher.Event) tea.Cmd {
 
 		switch ev.Op {
 		case watcher.OpRemove:
-			_ = copier.DeleteFile(dstPath)
+			if err := copier.DeleteFile(dstPath); err != nil {
+				return FileChangedMsg{relPath: ev.RelPath, action: fmt.Sprintf("error: %v", err), isError: true}
+			}
 			return FileChangedMsg{relPath: ev.RelPath, action: "removed"}
 		case watcher.OpRename:
 			if _, err := os.Stat(srcPath); err == nil {
-				_ = copier.CopyFile(srcPath, dstPath)
+				if err := copier.CopyFile(srcPath, dstPath); err != nil {
+					return FileChangedMsg{relPath: ev.RelPath, action: fmt.Sprintf("error: %v", err), isError: true}
+				}
 				return FileChangedMsg{relPath: ev.RelPath, action: "copied"}
 			}
-			_ = copier.DeleteFile(dstPath)
+			if err := copier.DeleteFile(dstPath); err != nil {
+				return FileChangedMsg{relPath: ev.RelPath, action: fmt.Sprintf("error: %v", err), isError: true}
+			}
 			return FileChangedMsg{relPath: ev.RelPath, action: "removed"}
 		default:
-			_ = copier.CopyFile(srcPath, dstPath)
+			if err := copier.CopyFile(srcPath, dstPath); err != nil {
+				return FileChangedMsg{relPath: ev.RelPath, action: fmt.Sprintf("error: %v", err), isError: true}
+			}
 			return FileChangedMsg{relPath: ev.RelPath, action: "copied"}
 		}
 	}
@@ -167,11 +239,15 @@ func (m Model) View() string {
 	for _, entry := range m.changelog {
 		ts := entry.time.Format("15:04:05")
 		actionStyled := entry.action
-		switch entry.action {
-		case "copied":
-			actionStyled = copiedStyle.Render(entry.action)
-		case "removed":
-			actionStyled = removedStyle.Render(entry.action)
+		if entry.isError {
+			actionStyled = errorStyle.Render(entry.action)
+		} else {
+			switch entry.action {
+			case "copied":
+				actionStyled = copiedStyle.Render(entry.action)
+			case "removed":
+				actionStyled = removedStyle.Render(entry.action)
+			}
 		}
 		s += dimStyle.Render("  "+ts) + "  " + pathStyle.Render(entry.relPath) + " " + arrowStyle.Render("→") + " " + actionStyled + "\n"
 	}
@@ -180,6 +256,6 @@ func (m Model) View() string {
 		s += "\n"
 	}
 
-	s += dimStyle.Render("  Press q to quit") + "\n"
+	s += dimStyle.Render("  Press r to re-sync, q to quit") + "\n"
 	return s
 }

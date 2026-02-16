@@ -10,7 +10,6 @@ A hot-reload style CLI tool for World of Warcraft addon developers. Watches your
 
 - **File watching** — Detects changes via OS-level events and copies files instantly
 - **Auto-detect addon source** — Finds your addon by scanning for `.toc` files, or specify a path manually
-- **Auto-detect WoW path** — Finds your WoW installation automatically (supports both Windows and WSL-style paths)
 - **Smart ignore** — Respects `.gitignore` and `.pkgmeta` ignore lists automatically, with additional patterns via config
 - **Deletion sync** — Target mirrors source exactly; removed source files are cleaned up
 - **Polished TUI** — Spinner, status header, and rolling change log; falls back to plain text when piped
@@ -33,14 +32,19 @@ go build ./cmd/blink
 
 ## Quick Start
 
-Run `blink` from your addon project directory. It auto-detects your addon source and WoW path:
+Set your WoW path in `blink.toml` and run `blink` from your addon project directory:
+
+```toml
+# blink.toml
+wowPath = "/mnt/c/Program Files/World of Warcraft/_retail_"
+```
 
 ```bash
 cd ~/my-addon
 blink
 ```
 
-That's it. Blink finds the `.toc` file, locates your WoW install, copies everything over, and watches for changes.
+Blink finds the `.toc` file, copies everything to your WoW AddOns folder, and watches for changes.
 
 ## Usage
 
@@ -49,7 +53,7 @@ blink [flags]
 
 Flags:
   --source, -s      Path to addon source (default: auto-detect via .toc files)
-  --wow-path, -w    Path to WoW version folder, e.g. /path/to/WoW/_retail_ (default: auto-detect)
+  --wow-path, -w    Path to WoW version folder, e.g. /path/to/WoW/_retail_ (required)
   --no-watch        One-time copy, don't watch for changes
   --version, -v     Print the version
 ```
@@ -77,7 +81,7 @@ usePkgMeta = true
 | Field          | Description                                              | Default    |
 |----------------|----------------------------------------------------------|------------|
 | `source`       | Path to addon source, or auto-detect via `.toc` files    | `"auto"`   |
-| `wowPath`      | Path to WoW version folder (e.g. `.../_retail_`), or `"auto"` | `"auto"` |
+| `wowPath`      | Path to WoW version folder (e.g. `.../_retail_`) — **required** | —        |
 | `ignore`       | Additional glob patterns to ignore (on top of .gitignore)| `[]`       |
 | `useGitignore` | Respect `.gitignore` patterns                            | `true`     |
 | `usePkgMeta`   | Respect `.pkgmeta` ignore patterns                       | `true`     |

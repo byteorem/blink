@@ -104,7 +104,7 @@ func TestMergeFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Defaults()
-			MergeFlags(&cfg, tt.source, tt.wowPath)
+			MergeFlags(&cfg, tt.source, tt.wowPath, 0, false)
 			if tt.source != "" && cfg.Source != tt.source {
 				t.Errorf("Source = %q, want %q", cfg.Source, tt.source)
 			}

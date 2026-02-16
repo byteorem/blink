@@ -3,6 +3,7 @@ package watcher
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -23,13 +24,16 @@ const (
 )
 
 // Event represents a debounced filesystem change.
+// If Err is set, the event represents a watcher error rather than a file change.
 type Event struct {
 	RelPath string
 	Op      Op
+	Err     error
 }
 
 // Watch starts watching srcDir for changes, returning debounced events on a channel.
-func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event, error) {
+// The delay parameter specifies the debounce window in milliseconds.
+func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer, delay int, verbose bool) (<-chan Event, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -60,7 +64,7 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 		defer func() { _ = w.Close() }()
 		defer close(ch)
 
-		const debounce = 50 * time.Millisecond
+		debounce := time.Duration(delay) * time.Millisecond
 		pending := make(map[string]Event)
 		var timer *time.Timer
 		var timerC <-chan time.Time
@@ -91,6 +95,9 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 				}
 
 				if ig.ShouldIgnore(rel) {
+					if verbose {
+						log.Printf("[verbose] ignored: %s", rel)
+					}
 					continue
 				}
 
@@ -106,8 +113,10 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 					op = OpWrite
 				case ev.Has(fsnotify.Remove):
 					op = OpRemove
+					_ = w.Remove(ev.Name)
 				case ev.Has(fsnotify.Rename):
 					op = OpRename
+					_ = w.Remove(ev.Name)
 				default:
 					continue
 				}
@@ -121,10 +130,11 @@ func Watch(ctx context.Context, srcDir string, ig *copier.Ignorer) (<-chan Event
 					timer.Reset(debounce)
 				}
 
-			case _, ok := <-w.Errors:
+			case watchErr, ok := <-w.Errors:
 				if !ok {
 					return
 				}
+				ch <- Event{Err: watchErr}
 			}
 		}
 	}()
