@@ -69,7 +69,7 @@ func run(c *cli.Context) error {
 	}
 
 	targetPath := filepath.Join(wowPath, "Interface", "AddOns", addonName)
-	ig := copier.NewIgnorer(srcDir, cfg.Ignore, cfg.UseGitignore)
+	ig := copier.NewIgnorer(srcDir, cfg.Ignore, cfg.UseGitignore, cfg.UsePkgMeta)
 
 	isTTY := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 

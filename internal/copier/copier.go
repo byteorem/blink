@@ -13,8 +13,8 @@ type Ignorer struct {
 	patterns []string
 }
 
-// NewIgnorer creates an Ignorer from .gitignore (if enabled) and extra patterns.
-func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool) *Ignorer {
+// NewIgnorer creates an Ignorer from .gitignore, .pkgmeta (if enabled), and extra patterns.
+func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool, usePkgMeta bool) *Ignorer {
 	var patterns []string
 
 	if useGitignore {
@@ -32,9 +32,45 @@ func NewIgnorer(srcDir string, extraPatterns []string, useGitignore bool) *Ignor
 		}
 	}
 
+	if usePkgMeta {
+		patterns = append(patterns, parsePkgMetaIgnore(srcDir)...)
+	}
+
 	patterns = append(patterns, extraPatterns...)
 
 	return &Ignorer{patterns: patterns}
+}
+
+// parsePkgMetaIgnore reads .pkgmeta and extracts patterns from the ignore: block.
+func parsePkgMetaIgnore(srcDir string) []string {
+	f, err := os.Open(filepath.Join(srcDir, ".pkgmeta"))
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = f.Close() }()
+
+	var patterns []string
+	inIgnore := false
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "ignore:" {
+			inIgnore = true
+			continue
+		}
+		if inIgnore {
+			if strings.HasPrefix(line, "  - ") || strings.HasPrefix(line, "    - ") || strings.HasPrefix(line, "\t- ") {
+				pattern := strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))
+				if pattern != "" {
+					patterns = append(patterns, pattern)
+				}
+			} else if trimmed != "" && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+				inIgnore = false
+			}
+		}
+	}
+	return patterns
 }
 
 // ShouldIgnore reports whether the given relative path should be excluded.

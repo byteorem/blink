@@ -11,7 +11,7 @@ A hot-reload style CLI tool for World of Warcraft addon developers. Watches your
 - **File watching** — Detects changes via OS-level events and copies files instantly
 - **Auto-detect addon source** — Finds your addon by scanning for `.toc` files, or specify a path manually
 - **Auto-detect WoW path** — Finds your WoW installation automatically (supports both Windows and WSL-style paths)
-- **Smart ignore** — Respects `.gitignore` automatically, with additional patterns via config
+- **Smart ignore** — Respects `.gitignore` and `.pkgmeta` ignore lists automatically, with additional patterns via config
 - **Deletion sync** — Target mirrors source exactly; removed source files are cleaned up
 - **Polished TUI** — Spinner, status header, and rolling change log; falls back to plain text when piped
 
@@ -71,6 +71,7 @@ source = "./MyAddon"
 wowPath = "C:\\Program Files\\World of Warcraft\\_retail_"
 ignore = ["*.md", "tests/"]
 useGitignore = true
+usePkgMeta = true
 ```
 
 | Field          | Description                                              | Default    |
@@ -79,6 +80,7 @@ useGitignore = true
 | `wowPath`      | Path to WoW version folder (e.g. `.../_retail_`), or `"auto"` | `"auto"` |
 | `ignore`       | Additional glob patterns to ignore (on top of .gitignore)| `[]`       |
 | `useGitignore` | Respect `.gitignore` patterns                            | `true`     |
+| `usePkgMeta`   | Respect `.pkgmeta` ignore patterns                       | `true`     |
 
 **Precedence**: CLI flags > `blink.toml` > defaults
 
@@ -90,7 +92,8 @@ See [`blink.toml.example`](blink.toml.example) for a commented template.
 
 1. `.git/` and `blink.toml` are always ignored
 2. `.gitignore` patterns are respected automatically (disable with `useGitignore = false`)
-3. Additional patterns from the `ignore` config array
+3. `.pkgmeta` ignore list is respected automatically (disable with `usePkgMeta = false`)
+4. Additional patterns from the `ignore` config array
 
 ## Requirements
 

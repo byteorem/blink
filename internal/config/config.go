@@ -14,6 +14,7 @@ type Config struct {
 	WowPath      string   `toml:"wowPath"`
 	Ignore       []string `toml:"ignore"`
 	UseGitignore bool     `toml:"useGitignore"`
+	UsePkgMeta   bool     `toml:"usePkgMeta"`
 }
 
 // Defaults returns a Config with default values.
@@ -23,6 +24,7 @@ func Defaults() Config {
 		WowPath:      "auto",
 		Ignore:       []string{},
 		UseGitignore: true,
+		UsePkgMeta:   true,
 	}
 }
 

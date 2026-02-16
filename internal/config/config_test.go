@@ -21,6 +21,9 @@ func TestDefaults(t *testing.T) {
 	if len(cfg.Ignore) != 0 {
 		t.Errorf("Ignore = %v, want empty", cfg.Ignore)
 	}
+	if cfg.UsePkgMeta != true {
+		t.Error("UsePkgMeta = false, want true")
+	}
 }
 
 func TestLoad_NoFile(t *testing.T) {
@@ -47,6 +50,7 @@ func TestLoad_ValidTOML(t *testing.T) {
 wowPath = "/mnt/c/WoW/_retail_"
 ignore = ["*.bak"]
 useGitignore = false
+usePkgMeta = false
 `
 	_ = os.WriteFile(filepath.Join(dir, "blink.toml"), []byte(toml), 0o644)
 
@@ -65,6 +69,9 @@ useGitignore = false
 	}
 	if len(cfg.Ignore) != 1 || cfg.Ignore[0] != "*.bak" {
 		t.Errorf("Ignore = %v, want [*.bak]", cfg.Ignore)
+	}
+	if cfg.UsePkgMeta != false {
+		t.Error("UsePkgMeta = true, want false")
 	}
 }
 

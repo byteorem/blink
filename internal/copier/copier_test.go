@@ -49,7 +49,7 @@ func TestNewIgnorer_GitignorePatterns(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("*.tmp\n# comment\n\nbuild/\n"), 0o644)
 
-	ig := NewIgnorer(dir, nil, true)
+	ig := NewIgnorer(dir, nil, true, false)
 
 	if !ig.ShouldIgnore("foo.tmp") {
 		t.Error("should ignore *.tmp from .gitignore")
@@ -63,7 +63,7 @@ func TestNewIgnorer_NoGitignore(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("*.tmp\n"), 0o644)
 
-	ig := NewIgnorer(dir, []string{"*.bak"}, false)
+	ig := NewIgnorer(dir, []string{"*.bak"}, false, false)
 
 	if ig.ShouldIgnore("foo.tmp") {
 		t.Error("should not ignore *.tmp when useGitignore=false")
@@ -85,7 +85,7 @@ func TestInitialSync(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(src, ".git"), 0o755)
 	_ = os.WriteFile(filepath.Join(src, ".git", "HEAD"), []byte("ref"), 0o644)
 
-	ig := NewIgnorer(src, nil, false)
+	ig := NewIgnorer(src, nil, false, false)
 	count, err := InitialSync(src, dst, ig)
 	if err != nil {
 		t.Fatalf("InitialSync() error = %v", err)
@@ -138,6 +138,58 @@ func TestDeleteFile(t *testing.T) {
 	}
 	if _, err := os.Stat(f); !os.IsNotExist(err) {
 		t.Error("file should be deleted")
+	}
+}
+
+func TestNewIgnorer_PkgMetaIgnore(t *testing.T) {
+	dir := t.TempDir()
+	pkgmeta := `package-as: MyAddon
+
+ignore:
+  - README.md
+  - tests/
+  - .github
+
+manual-changelog:
+  filename: CHANGELOG.md
+`
+	_ = os.WriteFile(filepath.Join(dir, ".pkgmeta"), []byte(pkgmeta), 0o644)
+
+	ig := NewIgnorer(dir, nil, false, true)
+
+	if !ig.ShouldIgnore("README.md") {
+		t.Error("should ignore README.md from .pkgmeta")
+	}
+	if !ig.ShouldIgnore("tests/foo.lua") {
+		t.Error("should ignore tests/ from .pkgmeta")
+	}
+	if !ig.ShouldIgnore(".github") {
+		t.Error("should ignore .github from .pkgmeta")
+	}
+	if ig.ShouldIgnore("main.lua") {
+		t.Error("should not ignore main.lua")
+	}
+}
+
+func TestNewIgnorer_PkgMetaDisabled(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, ".pkgmeta"), []byte("ignore:\n  - README.md\n"), 0o644)
+
+	ig := NewIgnorer(dir, nil, false, false)
+
+	if ig.ShouldIgnore("README.md") {
+		t.Error("should not ignore README.md when usePkgMeta=false")
+	}
+}
+
+func TestNewIgnorer_PkgMetaNoIgnoreBlock(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, ".pkgmeta"), []byte("package-as: MyAddon\n"), 0o644)
+
+	ig := NewIgnorer(dir, nil, false, true)
+
+	if len(ig.patterns) != 0 {
+		t.Errorf("patterns = %v, want empty", ig.patterns)
 	}
 }
 
