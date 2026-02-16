@@ -49,9 +49,8 @@ func main() {
 				Usage:   "Debounce delay in milliseconds (default: 50)",
 			},
 			&cli.BoolFlag{
-				Name:    "verbose",
-				Aliases: []string{"v"},
-				Usage:   "Enable verbose logging",
+				Name:  "verbose",
+				Usage: "Enable verbose logging",
 			},
 		},
 		Action: run,
