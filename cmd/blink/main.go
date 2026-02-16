@@ -71,6 +71,14 @@ func run(c *cli.Context) error {
 	targetPath := filepath.Join(wowPath, "Interface", "AddOns", addonName)
 	ig := copier.NewIgnorer(srcDir, cfg.Ignore, cfg.UseGitignore, cfg.UsePkgMeta)
 
+	cleaned, err := copier.CleanDestination(srcDir, targetPath)
+	if err != nil {
+		return fmt.Errorf("cleanup failed: %w", err)
+	}
+	if cleaned > 0 {
+		fmt.Printf("Removed %d stale file(s) from destination\n", cleaned)
+	}
+
 	isTTY := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 
 	var fileCount int

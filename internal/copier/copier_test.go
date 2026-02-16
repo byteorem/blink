@@ -193,6 +193,63 @@ func TestNewIgnorer_PkgMetaNoIgnoreBlock(t *testing.T) {
 	}
 }
 
+func TestCleanDestination_RemovesStaleFiles(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	// Source has one file
+	_ = os.WriteFile(filepath.Join(src, "main.lua"), []byte("keep"), 0o644)
+
+	// Destination has that file plus a stale one
+	_ = os.WriteFile(filepath.Join(dst, "main.lua"), []byte("keep"), 0o644)
+	_ = os.WriteFile(filepath.Join(dst, "old.lua"), []byte("stale"), 0o644)
+
+	removed, err := CleanDestination(src, dst)
+	if err != nil {
+		t.Fatalf("CleanDestination() error = %v", err)
+	}
+	if removed != 1 {
+		t.Errorf("removed = %d, want 1", removed)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "main.lua")); err != nil {
+		t.Error("main.lua should still exist")
+	}
+	if _, err := os.Stat(filepath.Join(dst, "old.lua")); !os.IsNotExist(err) {
+		t.Error("old.lua should be removed")
+	}
+}
+
+func TestCleanDestination_RemovesEmptyDirs(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	// Destination has a subdir with only a stale file
+	_ = os.MkdirAll(filepath.Join(dst, "libs"), 0o755)
+	_ = os.WriteFile(filepath.Join(dst, "libs", "old.lua"), []byte("stale"), 0o644)
+
+	removed, err := CleanDestination(src, dst)
+	if err != nil {
+		t.Fatalf("CleanDestination() error = %v", err)
+	}
+	if removed != 1 {
+		t.Errorf("removed = %d, want 1", removed)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "libs")); !os.IsNotExist(err) {
+		t.Error("empty libs/ dir should be removed")
+	}
+}
+
+func TestCleanDestination_NonExistentDst(t *testing.T) {
+	src := t.TempDir()
+	removed, err := CleanDestination(src, "/nonexistent/path")
+	if err != nil {
+		t.Fatalf("CleanDestination() error = %v", err)
+	}
+	if removed != 0 {
+		t.Errorf("removed = %d, want 0", removed)
+	}
+}
+
 func TestDeleteFile_NonExistent(t *testing.T) {
 	if err := DeleteFile("/nonexistent/file/path"); err != nil {
 		t.Errorf("DeleteFile() non-existent should return nil, got %v", err)

@@ -229,6 +229,59 @@ func CopyFile(src, dst string) error {
 	return os.WriteFile(dst, data, 0o644)
 }
 
+// CleanDestination removes files from dst that don't exist in src.
+// Returns the count of removed files.
+func CleanDestination(src, dst string) (int, error) {
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		return 0, nil
+	}
+
+	removed := 0
+
+	// First pass: remove stale files
+	err := filepath.WalkDir(dst, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(dst, path)
+		if err != nil {
+			return err
+		}
+		if relPath == "." || d.IsDir() {
+			return nil
+		}
+		srcPath := filepath.Join(src, relPath)
+		if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+			removed++
+		}
+		return nil
+	})
+	if err != nil {
+		return removed, err
+	}
+
+	// Second pass: remove empty directories (bottom-up)
+	var dirs []string
+	_ = filepath.WalkDir(dst, func(path string, d os.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || path == dst {
+			return nil
+		}
+		dirs = append(dirs, path)
+		return nil
+	})
+	for i := len(dirs) - 1; i >= 0; i-- {
+		entries, err := os.ReadDir(dirs[i])
+		if err == nil && len(entries) == 0 {
+			_ = os.Remove(dirs[i])
+		}
+	}
+
+	return removed, nil
+}
+
 // DeleteFile removes the file at dst, returning nil if it does not exist.
 func DeleteFile(dst string) error {
 	err := os.Remove(dst)
